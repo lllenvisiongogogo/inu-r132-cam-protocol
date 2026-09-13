@@ -1,0 +1,58 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:InuR132.Display.Controls"
+        x:Class="InuR132.Display.Views.LabelWindow"
+        Title="inu-r132 标注"
+        Width="1400" Height="900"
+        MinWidth="900" MinHeight="600">
+
+  <DockPanel>
+
+    <Border DockPanel.Dock="Top" Padding="10" Background="#33000000">
+      <DockPanel>
+        <Button x:Name="TrainButton" DockPanel.Dock="Right" Content="训练"
+                Padding="18,6" FontWeight="Bold"
+                ToolTip.Tip="跑 train/scripts/pipeline.sh：组装 dataset/ → 训练 → 发布到 models/" />
+        <TextBlock x:Name="HeaderText" VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis" />
+      </DockPanel>
+    </Border>
+
+    <Border DockPanel.Dock="Left" Width="240" Padding="8" Background="#22000000">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="train/raw" FontWeight="Bold" Margin="0,0,0,6" />
+        <TextBlock x:Name="DirSummary" DockPanel.Dock="Bottom" Opacity="0.7"
+                   FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0" />
+        <ListBox x:Name="DirList" />
+      </DockPanel>
+    </Border>
+
+    <Border DockPanel.Dock="Bottom" Padding="8" Background="#22000000">
+      <WrapPanel ItemSpacing="8" LineSpacing="6">
+        <Button x:Name="PrevButton" Content="◀ 上一张" ToolTip.Tip="快捷键 ← 或 PageUp" />
+        <TextBlock x:Name="CounterText" VerticalAlignment="Center" MinWidth="96"
+                   TextAlignment="Center" />
+        <Button x:Name="NextButton" Content="下一张 ▶" ToolTip.Tip="快捷键 → 或 PageDown" />
+        <TextBlock Text="新框类别" VerticalAlignment="Center" Margin="8,0,0,0" />
+        <ComboBox x:Name="ClassBox" Width="150" />
+        <Button x:Name="DeleteButton" Content="删除选中 (Del)" />
+        <Button x:Name="NegativeButton" Content="无目标 (N)"
+                ToolTip.Tip="给这张图写一个空标签：这里没有要找的东西。空标签就是负样本" />
+        <TextBlock x:Name="LabelledText" VerticalAlignment="Center" FontWeight="Bold"
+                   Text="未标注" />
+        <TextBlock x:Name="StatusText" VerticalAlignment="Center" Opacity="0.85" />
+        <TextBlock x:Name="SaveText" VerticalAlignment="Center" Opacity="0.6" />
+      </WrapPanel>
+    </Border>
+
+    <Border x:Name="LogPanel" DockPanel.Dock="Bottom" Height="170" Padding="8" IsVisible="False">
+      <TextBox x:Name="LogBox" IsReadOnly="True" AcceptsReturn="True"
+               TextWrapping="NoWrap" FontFamily="monospace" FontSize="12" />
+    </Border>
+
+    <Border Margin="8" Background="#111">
+      <controls:BoxCanvas x:Name="Canvas" />
+    </Border>
+
+  </DockPanel>
+</Window>

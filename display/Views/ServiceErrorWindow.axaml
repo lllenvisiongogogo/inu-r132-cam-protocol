@@ -1,0 +1,35 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="InuR132.Display.Views.ServiceErrorWindow"
+        Title="inu-r132 - InuService"
+        Width="560" Height="330"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen">
+  <DockPanel Margin="24">
+
+    <StackPanel DockPanel.Dock="Bottom"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Spacing="12">
+      <Button x:Name="RetryButton" Content="重试" MinWidth="96" />
+      <Button x:Name="QuitButton" Content="退出" MinWidth="96" />
+    </StackPanel>
+
+    <StackPanel Spacing="14" VerticalAlignment="Top">
+      <TextBlock Text="无法进入主窗口" FontSize="20" FontWeight="SemiBold" />
+      <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
+      <Border Background="#22FFFFFF" CornerRadius="6" Padding="12">
+        <StackPanel Spacing="6">
+          <TextBlock Text="先启动 Inuitive 的 InuService，再点“重试”。" FontWeight="SemiBold" />
+          <TextBlock TextWrapping="Wrap" Opacity="0.85"
+                     Text="在项目根目录执行：make service" />
+          <TextBlock TextWrapping="Wrap" Opacity="0.85"
+                     Text="或手动：sudo env INUITIVE_PATH=$ROOT LD_LIBRARY_PATH=$ROOT/bin $ROOT/bin/InuService" />
+          <TextBlock TextWrapping="Wrap" Opacity="0.7"
+                     Text="InuService 会自己 daemonize，起一次后一直常驻；用 make service-stop 停止。" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+  </DockPanel>
+</Window>

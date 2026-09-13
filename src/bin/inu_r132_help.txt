@@ -1,0 +1,229 @@
+inu-r132 - serve and display the RGB (CGS_132 "R132") camera of an Inuitive NU4000
+
+Usage:
+  inu-r132 <command>
+
+Commands:
+  serve         Start InuService and serve the R132 camera over TCP
+  display       Show the camera in a window (local or remote)
+  scan          Detect the cubes and print where they are and how far, as JSON
+  shot          Save timestamped JPEG photos under shot/ next to the program
+  probe         List every channel and sensor the SDK reports, as JSON
+  service-stop  Stop Inuitive's InuService daemon
+
+Global options:
+  -h, --help      Show this help
+  -V, --version   Show the version
+
+serve arguments:
+  --port <port>    TCP port to listen on, defaults to 5534
+  --fps <n>        Frames per second pushed to subscribers, defaults to 30
+                   (0 = as fast as the camera produces)
+  --quality <n>    JPEG quality from 1 to 100, defaults to 80 (rgb only)
+  --stream <kind>  rgb (default, JPEG), depth (raw little endian Z16, mm), all
+                   or mix. `all` opens every stream so clients can switch;
+                   `mix` also makes subscribers default to the rgb+depth
+                   overlay
+  --attach         Do not start InuService, connect to the running daemon
+  --mock           Serve synthetic rgb/depth patterns instead of the camera,
+                   for testing the protocol without any hardware
+  --no-registered  Stream raw (unregistered) depth. Depth is registered to the
+                   RGB camera by default (ActivateRegisteredDepth), so `mix`
+                   lines up without any manual offset
+  --service <name> InuService name to connect to, defaults to auto
+  --format <fmt>   bgra (default), bgr or rgba
+  --channel <id>   RGB channel id, defaults to auto detect
+
+display arguments:
+  --remote [H:P]   Display a stream served by another inu-r132 host instead of
+                   the local camera. Without a value it uses 0.0.0.0:5534, i.e.
+                   a serve running on this machine
+  --service <name> InuService name to connect to, defaults to auto
+  --fps <n>        Requested sensor frame rate, 0 = sensor default
+  --format <fmt>   bgra (default), bgr or rgba
+  --stream <kind>  Stream shown first: rgb (default) or depth
+  --near <mm>      Depth window near edge, shown bright, defaults to 300
+  --far <mm>       Depth window far edge, shown dark, defaults to 5000
+  --gamma <f>      Depth curve: 1.0 linear, below 1.0 brightens the middle.
+                   Useful when the scene is bimodal (a near object plus a far
+                   background): 0.5 or 0.25 gives the far cluster more contrast
+  --auto           Start with the depth window auto-ranged to each frame's
+                   2%..98% percentile instead of the fixed --near/--far
+  --no-registered  Stream raw depth instead of registering it to the RGB camera
+  --model <f.pt>   Run a YOLO model over every colour frame and draw its boxes;
+                   repeat for several models. Without it, every *.pt in the
+                   --models-dir directory is used
+  --models-dir <d> Where to look for models when --model is not given,
+                   defaults to `models` relative to the working directory
+  --conf <f>       Confidence floor for the detector, defaults to 0.4
+  --imgsz <n>      Inference size handed to the detector, defaults to 640
+  --no-detect      Do not run the detector at all
+  --python <path>  Python that has ultralytics installed. Defaults to
+                   $INU_R132_PYTHON, then a .venv next to the program or in the
+                   working directory, then python3 on PATH
+  --detector <py>  The detector sidecar script. Defaults to
+                   $INU_R132_DETECTOR, then inu_yolo_detector.py next to the
+                   program or in yolo-cube-detect/
+  --channel <id>   RGB channel id, defaults to auto detect
+
+  The local window opens every stream the device has. Keys:
+    1, 2, ...        show stream 1 (rgb), 2 (depth), ...
+    z / x            far edge -100 / +100 mm
+    n / m            near edge -100 / +100 mm  (any manual change stops auto)
+    g                cycle the depth gamma 1.0 -> 0.5 -> 0.25
+    a                toggle auto range
+    Esc              quit
+
+  Detection: a .pt is a Python pickle, so the Rust binary cannot read one. The
+  program starts inu_yolo_detector.py (which needs torch and ultralytics) and
+  sends it the colour frames; the boxes come back as JSON and are drawn with a
+  label carrying the class, the confidence and the distance in millimetres at
+  the centre of the box. The distance is the average of the valid pixels in a
+  3x3 window there (a single pixel is noisy and depth has holes); it reads
+  `NO DEPTH` when that whole window is invalid. Registered depth shares the
+  colour camera's frame, so the box centre needs no reprojection; with
+  --no-registered the two do not line up and the distances will be wrong. Depth frames are never sent, since boxes found on the colour image
+  would not line up with a different picture. Detection runs on its own thread
+  with latest-frame semantics, so a slow model drops frames instead of slowing
+  the window down. If the models or the Python are missing, `display` says so
+  and shows the picture without boxes rather than failing.
+
+  Depth is 16-bit millimetres where 0 means "no measurement"; it is rendered
+  near-bright/far-dark inside [near, far]. The title bar shows the window, the
+  gamma, auto state and the frame's min/median/max and invalid ratio. The
+  window may shrink `far` or brighten the middle, but a scene with no data in
+  some depth band will always look two-toned: that is geometry, not the
+  renderer. `scripts/depth_stats.py HOST:PORT` prints the raw distribution.
+
+service-stop arguments:
+  none
+
+scan arguments:
+  --model <f.pt>   A YOLO model to run; repeat for several. Without it every
+                   *.pt in --models-dir is used
+  --models-dir <d> Where to look for models, defaults to `models`
+  --conf <f>       Confidence floor, defaults to 0.4
+  --imgsz <n>      Inference size, defaults to 640
+  -n, --count <n>  How many scans to print, defaults to 1
+  --warmup <ms>    Let the streams settle before the first scan, defaults to
+                   500. The first frames after a cold start still carry the
+                   sensor's boot exposure and the depth stream trails the colour
+                   one by a frame or two, so a one-shot scan would otherwise
+                   measure the wrong frame
+  --interval <ms>  Gap between scans, defaults to 500
+  --timeout <ms>   How long to wait for the detector to answer one frame,
+                   defaults to 30000
+  --pretty         Indent the JSON instead of one compact object per line
+  --remote [H:P]   Scan a running `serve` instead of the open the local camera.
+                   Without a value it uses 0.0.0.0:5534
+  --attach         Do not start InuService, use the already running daemon
+  --service <name> InuService name to connect to, defaults to auto
+  --python <path>  Python that has ultralytics, defaults to $INU_R132_PYTHON,
+                   a .venv next to the program, then python3 on PATH
+  --detector <py>  The detector sidecar script
+  --format <fmt>   bgra (default), bgr or rgba
+  --no-registered  Raw depth: the distances will be wrong, the boxes come from
+                   the colour image and would not line up
+  --channel <id>   RGB channel id, defaults to auto detect
+
+  One scan is one frame: wait for a fresh colour frame, hand that JPEG to the
+  detector, measure every box against the newest depth frame, print the JSON.
+  With the default -n 1 the process then exits. So a one-shot run pays the whole
+  cost every time - opening the camera, booting InuService and loading the model
+  is seconds, and it stops the InuService it started. To scan repeatedly, keep
+  one process alive with -n, or point it at a long-running serve:
+
+    inu-r132 serve --stream all        # terminal 1, keeps the camera open
+    inu-r132 scan --remote -n 100 --interval 200   # terminal 2
+
+  The JSON goes to stdout, one object per line, so `inu-r132 scan | jq` works
+  directly; everything else (the SDK, the detector) logs to stderr. The shape is:
+  {
+    "seq": 1,
+    "timestamp": "2026-09-12T12:47:51.078+08:00",
+    "image": {"width": 1600, "height": 1200},
+    "depth": {"available": true, "width": 1600, "height": 1200},
+    "detect_ms": 27.3,
+    "objects": [
+      {"model": "cubes-best", "label": "blue_cube", "class_id": 0,
+       "confidence": 0.9898,
+       "box": {"x1": 538.7, "y1": 635.5, "x2": 844.2, "y2": 978.6},
+       "centre": {"x": 691.5, "y": 807.1},
+       "distance_mm": 412, "depth_samples": 9}
+    ]
+  }
+  `objects` is always present and empty when nothing was found. `distance_mm`
+  is null when the 3x3 window at the box centre holds no valid depth, and
+  `depth_samples` (0..9) says how many of the nine were valid. Exits non-zero,
+  with a message on stderr and no JSON, when the detector or the frame fails.
+
+shot arguments:
+  --dir <dir>      Where to write; defaults to shot/ next to the program
+                   (so ./build/inu-r132 writes to ./build/shot/)
+  -n, --count <n>  How many photos to take, defaults to 1
+  --interval <ms>  Delay between photos of a burst, defaults to 500
+  --warmup <ms>    Delay before the first photo, so auto exposure settles,
+                   defaults to 500
+  --quality <n>    JPEG quality from 1 to 100, defaults to 95
+  --attach         Do not start InuService, use the already running daemon
+  --mock           Save synthetic patterns instead of using the camera, to
+                   check where the files land without any hardware
+  --service <name> InuService name to connect to, defaults to auto
+  --format <fmt>   bgra (default), bgr or rgba
+  --channel <id>   RGB channel id, defaults to auto detect
+
+  Each photo is named after its capture time in local time, e.g.
+  2026-02-14_09-31-07.123.jpg, so the directory sorts chronologically. The
+  path of every written file is also printed on stdout, one per line. `shot`
+  saves colour only; it does not open or register a depth stream.
+
+probe arguments:
+  --attach         Do not start InuService, use the already running daemon
+  --service <name> InuService name to connect to, defaults to auto
+
+  The JSON lists every channel (type 1 = RGB, 3 = stereo/IR, 4 = depth,
+  6 = disparity) and sensor (model, role), plus an "available" summary. A
+  depth or point-cloud stream needs a channel of type 4 to be present.
+
+serve protocol:
+  Client to server commands are newline terminated UTF-8 text:
+    status                    Reply with one `status <json>` line
+    subscribe [fps] [stream]  Start receiving frames of `stream`
+                              (rgb|depth|mix, default rgb); either argument may
+                              be omitted
+    stream <rgb|depth|mix>    Switch this connection to another stream, which is
+                              instant and does not restart anything. `mix`
+                              delivers rgb and depth alternately on the same
+                              connection for the client to overlay
+    unsubscribe               Stop receiving frames
+    fps <n>                   Set this connection's frame rate cap
+    ping                      Reply `pong`
+    help                      List the commands
+    quit                      Close the connection
+
+  A server opened with `--stream all` reports both streams in `status`; a
+  `stream` command for one it did not open is answered with `err ...`. `mix`
+  needs both, so it is only available when both were opened.
+
+  Every server message is a length prefixed envelope:
+    u32 be length | u8 type (0 = text, 1 = frame, 2 = bye) | payload
+  A frame payload is:
+    width u32 be | height u32 be | codec u8 | flags u8 | codec payload
+  codec 1 = JPEG (rgb), codec 2 = raw u16 little endian, one per pixel, depth
+  in millimetres (0 = no measurement) or disparity (4 MSB confidence,
+  12 LSB disparity) depending on which stream is served.
+
+Examples:
+  inu-r132 serve --stream all --port 5534 --fps 30
+  inu-r132 serve --stream depth
+  inu-r132 display
+  inu-r132 display --remote 10.0.0.5:5534
+  inu-r132 display --stream depth --near 300 --far 5000
+  inu-r132 display --model models/cubes-best.pt
+  inu-r132 display --models-dir /opt/models --conf 0.5
+  inu-r132 serve --attach --quality 90
+  inu-r132 scan                          # one scan of the local camera
+  inu-r132 scan --remote -n 10           # ten scans of a running serve
+  inu-r132 scan | jq '.objects[] | {label, distance_mm}'
+  inu-r132 shot                          # one photo into shot/
+  inu-r132 shot -n 20 --interval 1000    # one photo per second into shot/

@@ -1,0 +1,106 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="InuR132.Display.Views.MainWindow"
+        Title="inu-r132 display"
+        Width="1240" Height="860"
+        MinWidth="940" MinHeight="620">
+
+  <DockPanel>
+
+    <Border DockPanel.Dock="Top" Padding="10" Background="#33000000">
+      <StackPanel Spacing="8">
+        <WrapPanel ItemSpacing="8" LineSpacing="8">
+          <TextBlock Text="端口" VerticalAlignment="Center" />
+          <NumericUpDown x:Name="PortBox" Width="120" Minimum="1" Maximum="65535"
+                         Increment="1" FormatString="0" Value="5534" />
+          <TextBlock Text="流" VerticalAlignment="Center" />
+          <ComboBox x:Name="StreamBox" Width="110" SelectedIndex="0">
+            <ComboBoxItem Content="rgb" />
+            <ComboBoxItem Content="depth" />
+            <ComboBoxItem Content="mix" />
+          </ComboBox>
+
+          <Button x:Name="StartServeButton" Content="启动 serve" />
+          <Button x:Name="StopServeButton" Content="停止 serve" />
+          <Button x:Name="ConnectButton" Content="连接" />
+          <Button x:Name="DisconnectButton" Content="断开" />
+        </WrapPanel>
+
+        <WrapPanel ItemSpacing="8" LineSpacing="8">
+          <CheckBox x:Name="AutoRangeBox" Content="自动量程" VerticalAlignment="Center" />
+          <TextBlock Text="near" VerticalAlignment="Center" />
+          <NumericUpDown x:Name="NearBox" Width="120" Minimum="0" Maximum="65535"
+                         Increment="100" FormatString="0" Value="300" />
+          <TextBlock Text="far" VerticalAlignment="Center" />
+          <NumericUpDown x:Name="FarBox" Width="120" Minimum="1" Maximum="65535"
+                         Increment="100" FormatString="0" Value="5000" />
+          <TextBlock Text="gamma" VerticalAlignment="Center" />
+          <NumericUpDown x:Name="GammaBox" Width="110" Minimum="0.05" Maximum="4"
+                         Increment="0.25" FormatString="0.00" Value="1" />
+          <TextBlock Text="depth 透明度" VerticalAlignment="Center" />
+          <NumericUpDown x:Name="OpacityBox" Width="110" Minimum="0" Maximum="1"
+                         Increment="0.05" FormatString="0.00" Value="0.55" />
+          <CheckBox x:Name="RegisteredBox" Content="配准深度 (默认开)"
+                    VerticalAlignment="Center" IsChecked="True"
+                    ToolTip.Tip="让芯片用出厂标定把深度对齐到彩色相机；取消勾选则输出原始深度" />
+        </WrapPanel>
+
+        <WrapPanel ItemSpacing="8" LineSpacing="8">
+          <Button x:Name="ShotButton" Content="拍照"
+                  ToolTip.Tip="把当前画面存成 JPEG（命名规则和 inu-r132 shot 一样）。存的是 serve 推过来的那帧，所以不用再开一次相机" />
+          <TextBlock Text="张数" VerticalAlignment="Center" />
+          <NumericUpDown x:Name="ShotCountBox" Width="100" Minimum="1" Maximum="999"
+                         Increment="1" FormatString="0" Value="1" />
+          <TextBlock Text="间隔 ms" VerticalAlignment="Center" />
+          <NumericUpDown x:Name="ShotIntervalBox" Width="110" Minimum="0" Maximum="60000"
+                         Increment="100" FormatString="0" Value="500" />
+          <TextBlock Text="目录" VerticalAlignment="Center" />
+          <TextBox x:Name="ShotDirBox" Width="380" />
+          <Button x:Name="OpenShotDirButton" Content="打开目录" />
+          <TextBlock x:Name="ShotCountText" VerticalAlignment="Center" Opacity="0.85"
+                     Text="已拍 0 张" />
+        </WrapPanel>
+
+        <WrapPanel ItemSpacing="8" LineSpacing="8">
+          <CheckBox x:Name="DetectBox" Content="目标检测" VerticalAlignment="Center" IsChecked="True"
+                    ToolTip.Tip="把彩色画面交给 YOLO 模型，框出识别结果。用的是 inu_yolo_detector.py 边车（和命令行 display 同一个脚本）" />
+          <TextBlock Text="模型目录" VerticalAlignment="Center" />
+          <TextBox x:Name="ModelsDirBox" Width="220" Text="models"
+                   ToolTip.Tip="扫这个目录下的 *.pt；相对当前工作目录" />
+          <TextBlock Text="conf" VerticalAlignment="Center" />
+          <NumericUpDown x:Name="ConfBox" Width="110" Minimum="0.01" Maximum="1"
+                         Increment="0.05" FormatString="0.00" Value="0.4" />
+          <TextBlock x:Name="DetectStatusText" VerticalAlignment="Center" Opacity="0.85"
+                     Text="检测: 未启动" />
+        </WrapPanel>
+
+        <TextBlock x:Name="StatusText" Opacity="0.85" TextWrapping="Wrap"
+                   Text="等待操作" />
+      </StackPanel>
+    </Border>
+
+    <Border DockPanel.Dock="Bottom" Height="190" Padding="8">
+      <TextBox x:Name="LogBox" IsReadOnly="True" AcceptsReturn="True"
+               TextWrapping="NoWrap" FontFamily="monospace" FontSize="12" />
+    </Border>
+
+    <Border Margin="10" Background="Black">
+      <Grid x:Name="PreviewArea" Background="Black">
+        <Image x:Name="RgbImage" Stretch="Uniform" />
+        <Image x:Name="DepthImage" Stretch="Uniform" />
+        <Canvas x:Name="BoxLayer" IsHitTestVisible="False" />
+        <Canvas x:Name="Overlay" IsHitTestVisible="False">
+          <Ellipse x:Name="ProbeDot" Canvas.Left="0" Canvas.Top="0"
+                   Width="12" Height="12" Fill="Lime" Stroke="Black"
+                   StrokeThickness="1" IsVisible="False" />
+          <Border x:Name="ProbeLabel" Canvas.Left="0" Canvas.Top="0"
+                  Background="#CC000000" CornerRadius="3" Padding="5,1"
+                  IsVisible="False">
+            <TextBlock x:Name="ProbeText" Foreground="Lime" FontSize="13" />
+          </Border>
+        </Canvas>
+      </Grid>
+    </Border>
+
+  </DockPanel>
+</Window>

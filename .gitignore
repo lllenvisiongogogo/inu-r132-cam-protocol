@@ -1,0 +1,41 @@
+# Downloaded / extracted vendor SDK (huge, machine specific)
+/deps/
+/vendor/
+/third_party/
+*.deb
+*.zip
+
+# Cargo
+/target
+
+# .NET / Avalonia
+display/bin/
+display/obj/
+.template-hive/
+*.user
+
+# Release staging
+/build
+
+# Python
+__pycache__/
+*.pyc
+# Usually a symlink to the training environment, so `display`, `gui` and `scan`
+# find an interpreter with ultralytics without any environment variable.
+/.venv
+
+# Scratch
+.temp/
+__*
+
+# Yolo models
+*.pt
+
+# Training: raw/ (photos and your labels) is the source and is kept; the rest is
+# generated.
+/train/dataset/
+/train/runs/
+/train/.ultralytics/
+/train/.cache/
+/train/scripts/__pycache__/
+/train/raw/

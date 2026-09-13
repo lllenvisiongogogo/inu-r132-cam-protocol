@@ -1,0 +1,99 @@
+# Cloud snapshot builds of the inu-r132 binary for Linux and Windows.
+# Each push to main publishes a GitHub release named
+# Snapshot-<commit sha 7>-<date>, with the binaries as zip assets.
+#
+# The vendor Inuitive SDK is not part of the repository, so these CI binaries
+# are built without camera support. Build locally with the SDK for a
+# functional binary; the workflow still validates compilation and packaging.
+
+name: Snapshot
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  linux:
+    name: Build Linux binary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libx11-dev libxkbcommon-dev libwayland-dev libudev-dev zip
+      - name: Build release
+        run: cargo build --release
+      - name: Test
+        run: cargo test --release
+      - name: Stage and zip
+        run: |
+          mkdir -p dist/linux
+          cp target/release/inu-r132 dist/linux/
+          # build.rs copies the shim next to the binary when an SDK was found
+          cp target/release/libinu_shim.so dist/linux/ 2>/dev/null || true
+          cd dist && zip -r ../linux-snapshot.zip linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-binaries
+          path: linux-snapshot.zip
+
+  windows:
+    name: Build Windows binary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+      - uses: Swatinem/rust-cache@v2
+      - name: Install mingw and packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 zip
+          # Rust windows-gnu needs the posix thread model of mingw
+          sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+          sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+      - name: Build release
+        run: cargo build --release --target x86_64-pc-windows-gnu
+      - name: Stage and zip
+        run: |
+          mkdir -p dist/win
+          cp target/x86_64-pc-windows-gnu/release/inu-r132.exe dist/win/
+          cp target/x86_64-pc-windows-gnu/release/inu_shim.dll dist/win/ 2>/dev/null || true
+          cd dist && zip -r ../win-snapshot.zip win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: win-binaries
+          path: win-snapshot.zip
+
+  release:
+    name: Publish snapshot release
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Compute the snapshot name
+        id: snap
+        run: |
+          SHA="${GITHUB_SHA:0:7}"
+          DATE="$(date -u +%Y-%m-%d)"
+          echo "name=Snapshot-${SHA}-${DATE}" >> "$GITHUB_OUTPUT"
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "snapshot-${{ github.sha }}" \
+            artifacts/linux-binaries/linux-snapshot.zip \
+            artifacts/win-binaries/win-snapshot.zip \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "${{ steps.snap.outputs.name }}" \
+            --notes "Automated snapshot build of commit ${{ github.sha }}"
